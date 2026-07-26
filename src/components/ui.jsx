@@ -5,7 +5,10 @@
 // ============================================================================
 
 import React, { useEffect } from "react";
-import { Sprout, Leaf } from "lucide-react";
+import {
+  Sprout, Leaf, Store, Recycle, Hammer, Coins, Tent,
+  HeartHandshake, Megaphone, Mic2, Lightbulb, FlaskConical, Quote,
+} from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell
 } from "recharts";

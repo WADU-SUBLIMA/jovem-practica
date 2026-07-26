@@ -38,7 +38,16 @@ import {
            servidor y las respuestas correctas nunca viajan al dispositivo
            durante la práctica. El acceso del staff usa Supabase Auth.
 */
-const APP_VERSION = "2.0.0";
+/* Historial de versiones
+   2.0.0 — Versión conectada a Supabase.
+   2.0.1 — Corrección de la pantalla en blanco: al armar src/components/ui.jsx
+           quedaron 11 íconos de lucide-react usados pero no importados
+           (Store y otros 9 del mapa de ilustraciones, más Quote en ExampleBox).
+           "Store is not defined" rompía la carga de la app antes de que React
+           pudiera dibujar nada. Verificado ejecutando el paquete real con
+           Node + renderToString antes de publicar.
+*/
+const APP_VERSION = "2.0.1";
 const APP_CREDITS = "Wayvas · Wayller Vargas Sandoval";
 
 /* ========================================================================== */
