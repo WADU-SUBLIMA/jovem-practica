@@ -15,6 +15,7 @@ import {
   Users, TrendingUp, Award, RotateCcw, BarChart3, Eye, X, Loader2, Sparkles,
   UserPlus, ShieldCheck, KeyRound, Ban, Quote, Archive, ArchiveRestore, Download,
   ShieldAlert, Home, Clock, Settings, Save, Sprout, LogOut, AlertCircle,
+  Leaf, ListChecks, BookOpen, Briefcase, GraduationCap, Zap,
 } from "lucide-react";
 
 import {
@@ -49,8 +50,14 @@ import {
    2.1.0 — Portada reordenada: acceso de staff ("Login") junto al logo arriba
            a la derecha, frase motivadora movida arriba, descripción recortada
            a una sola oración.
+   2.2.0 — Rediseño de la portada: título "Prepárate para tu certificación" más
+           chico, botones de práctica como tarjetas (ícono + título + subtítulo
+           + flecha), 3 tarjetas de características en fila (Casos reales /
+           7 unidades / Resultados al instante), y la frase motivadora vuelve
+           a mostrarse al final, en una tarjeta grande con ilustración de
+           hojas. Se mantiene el Login arriba y los créditos al pie.
 */
-const APP_VERSION = "2.1.0";
+const APP_VERSION = "2.2.0";
 const APP_CREDITS = "Wayvas · Wayller Vargas Sandoval";
 
 /* ========================================================================== */
@@ -338,50 +345,67 @@ function Portada({ staff, onPracticaCompleta, onElegirUnidad, onStaff }) {
         </button>
       </div>
 
-      <div className="relative rounded-3xl p-5 mt-6 overflow-hidden"
-        style={{ background: `linear-gradient(135deg, ${C.brote}, ${C.broteOscuro})` }}>
-        <Quote size={64} color="rgba(255,255,255,0.15)" className="absolute -top-2 -right-2" strokeWidth={2.5} />
-        <p style={{ fontFamily: FONT_DISPLAY, color: "white" }}
-          className="relative text-[15px] leading-snug font-semibold italic">
-          "{frase}"
-        </p>
-      </div>
-
       <div className="flex-1 flex flex-col justify-center gap-6 py-8">
         <div>
           <p className="text-sm font-semibold mb-2" style={{ color: C.brote }}>
             Guía JOVEM · Innovación y Emprendimiento
           </p>
-          <h1 style={{ fontFamily: FONT_DISPLAY, color: C.bosque }} className="text-3xl font-extrabold leading-tight">
-            Prepárate para tu examen de certificación
+          <h1 style={{ fontFamily: FONT_DISPLAY, color: C.bosque }} className="text-[26px] font-extrabold leading-tight">
+            Prepárate para tu certificación
           </h1>
           <p className="mt-3 text-[15px]" style={{ color: C.tintaSuave }}>
-            Practica con preguntas de conceptos y casos reales de las 7 unidades.
+            Practica conceptos y casos reales de las 7 unidades. Sin registro ni contraseña.
           </p>
         </div>
 
         <button onClick={onPracticaCompleta}
-          className="w-full rounded-2xl py-4 px-6 font-bold text-white text-lg shadow-lg active:scale-[0.98] transition-transform"
-          style={{ background: C.brote, fontFamily: FONT_DISPLAY }}>
-          ✨ Práctica Completa
+          className="w-full rounded-2xl py-4 px-5 flex items-center gap-3.5 shadow-lg active:scale-[0.98] transition-transform"
+          style={{ background: C.brote }}>
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.18)" }}>
+            <ListChecks size={22} color="white" />
+          </div>
+          <div className="flex-1 text-left">
+            <p style={{ fontFamily: FONT_DISPLAY, color: "white" }} className="font-bold text-[17px] leading-snug">Iniciar práctica completa</p>
+            <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.85)" }}>Preguntas de las 7 unidades</p>
+          </div>
+          <ChevronRight size={20} color="white" className="flex-shrink-0" />
         </button>
 
         <button onClick={onElegirUnidad}
-          className="w-full rounded-2xl py-3.5 px-6 font-semibold text-[15px] active:scale-[0.98] transition-transform"
-          style={{ background: "white", color: C.bosque, border: `2px solid ${C.hojaBorde}` }}>
-          Practicar una unidad específica
+          className="w-full rounded-2xl py-4 px-5 flex items-center gap-3.5 active:scale-[0.98] transition-transform"
+          style={{ background: "white", border: `2px solid ${C.hojaBorde}` }}>
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: C.hoja }}>
+            <BookOpen size={22} color={C.brote} />
+          </div>
+          <div className="flex-1 text-left">
+            <p style={{ fontFamily: FONT_DISPLAY, color: C.bosque }} className="font-bold text-[17px] leading-snug">Practicar por unidad</p>
+            <p className="text-[13px]" style={{ color: C.tintaSuave }}>Elige una unidad específica</p>
+          </div>
+          <ChevronRight size={20} color={C.brote} className="flex-shrink-0" />
         </button>
 
-        <div className="grid grid-cols-2 gap-3 mt-2">
+        <div className="grid grid-cols-3 gap-3 mt-1">
           {[
-            { icon: CheckCircle2, label: "Casos reales contextualizados" },
-            { icon: Award, label: "Nota y estadísticas al final" },
+            { icon: Briefcase, label: "Casos reales" },
+            { icon: GraduationCap, label: "7 unidades" },
+            { icon: Zap, label: "Resultados al instante" },
           ].map((f, i) => (
-            <div key={i} className="rounded-xl p-3 flex flex-col gap-1.5" style={{ background: C.hoja }}>
-              <f.icon size={16} color={C.brote} />
-              <span className="text-xs font-medium" style={{ color: C.bosque }}>{f.label}</span>
+            <div key={i} className="rounded-2xl p-3 flex flex-col items-center text-center gap-2" style={{ background: "white", border: `1px solid ${C.hojaBorde}` }}>
+              <div className="w-11 h-11 rounded-full flex items-center justify-center" style={{ background: C.hoja }}>
+                <f.icon size={20} color={C.brote} />
+              </div>
+              <span className="text-[12px] font-semibold leading-tight" style={{ color: C.bosque }}>{f.label}</span>
             </div>
           ))}
+        </div>
+
+        <div className="relative rounded-3xl p-5 pr-16 mt-1 overflow-hidden" style={{ background: C.hoja }}>
+          <Sparkles size={18} color={C.brote} className="mb-2" />
+          <p style={{ fontFamily: FONT_DISPLAY, color: C.bosque }} className="relative text-[15px] leading-snug font-bold">
+            {frase}
+          </p>
+          <Leaf size={110} color={C.broteOscuro} strokeWidth={1.25} className="absolute -bottom-6 -right-6 opacity-[0.12]" />
+          <Sprout size={44} color={C.broteOscuro} strokeWidth={1.25} className="absolute bottom-2 right-2 opacity-20" />
         </div>
       </div>
 
