@@ -46,8 +46,11 @@ import {
            "Store is not defined" rompía la carga de la app antes de que React
            pudiera dibujar nada. Verificado ejecutando el paquete real con
            Node + renderToString antes de publicar.
+   2.1.0 — Portada reordenada: acceso de staff ("Login") junto al logo arriba
+           a la derecha, frase motivadora movida arriba, descripción recortada
+           a una sola oración.
 */
-const APP_VERSION = "2.0.1";
+const APP_VERSION = "2.1.0";
 const APP_CREDITS = "Wayvas · Wayller Vargas Sandoval";
 
 /* ========================================================================== */
@@ -328,9 +331,23 @@ function Portada({ staff, onPracticaCompleta, onElegirUnidad, onStaff }) {
   );
   return (
     <div className="flex flex-col flex-1 px-6 pt-10 pb-8">
-      <Logo />
+      <div className="flex items-center justify-between">
+        <Logo />
+        <button onClick={onStaff} className="text-xs font-medium flex items-center gap-1 flex-shrink-0" style={{ color: C.tintaSuave }}>
+          <Lock size={13} /> {staff ? `Panel · ${staff.full_name}` : "Login"}
+        </button>
+      </div>
 
-      <div className="flex-1 flex flex-col justify-center gap-6 py-10">
+      <div className="relative rounded-3xl p-5 mt-6 overflow-hidden"
+        style={{ background: `linear-gradient(135deg, ${C.brote}, ${C.broteOscuro})` }}>
+        <Quote size={64} color="rgba(255,255,255,0.15)" className="absolute -top-2 -right-2" strokeWidth={2.5} />
+        <p style={{ fontFamily: FONT_DISPLAY, color: "white" }}
+          className="relative text-[15px] leading-snug font-semibold italic">
+          "{frase}"
+        </p>
+      </div>
+
+      <div className="flex-1 flex flex-col justify-center gap-6 py-8">
         <div>
           <p className="text-sm font-semibold mb-2" style={{ color: C.brote }}>
             Guía JOVEM · Innovación y Emprendimiento
@@ -340,7 +357,6 @@ function Portada({ staff, onPracticaCompleta, onElegirUnidad, onStaff }) {
           </h1>
           <p className="mt-3 text-[15px]" style={{ color: C.tintaSuave }}>
             Practica con preguntas de conceptos y casos reales de las 7 unidades.
-            Sin registro, sin contraseña: solo entra y empieza.
           </p>
         </div>
 
@@ -367,24 +383,10 @@ function Portada({ staff, onPracticaCompleta, onElegirUnidad, onStaff }) {
             </div>
           ))}
         </div>
-
-        <div className="relative rounded-3xl p-5 mt-1 overflow-hidden"
-          style={{ background: `linear-gradient(135deg, ${C.brote}, ${C.broteOscuro})` }}>
-          <Quote size={64} color="rgba(255,255,255,0.15)" className="absolute -top-2 -right-2" strokeWidth={2.5} />
-          <p style={{ fontFamily: FONT_DISPLAY, color: "white" }}
-            className="relative text-[15px] leading-snug font-semibold italic">
-            "{frase}"
-          </p>
-        </div>
       </div>
 
       <div className="pt-4 border-t" style={{ borderColor: C.hojaBorde }}>
-        <div className="flex items-center justify-center">
-          <button onClick={onStaff} className="text-xs font-medium flex items-center gap-1" style={{ color: C.tintaSuave }}>
-            <Lock size={13} /> {staff ? `Panel · ${staff.full_name}` : "Acceso para personal"}
-          </button>
-        </div>
-        <PieCreditos className="mt-3" />
+        <PieCreditos />
       </div>
     </div>
   );
