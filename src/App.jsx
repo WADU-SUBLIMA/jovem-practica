@@ -29,7 +29,7 @@ import {
   staffLogin, staffLogout, getSesionStaff,
   listarUsuarios, crearUsuario, actualizarUsuario, eliminarUsuario, restablecerClave,
   listarPreguntas, guardarPregunta, archivarPregunta, eliminarPregunta,
-  getImpacto,
+  getImpacto, configError,
 } from "./lib/jovem-api.js";
 
 /* Historial de versiones
@@ -123,6 +123,11 @@ export default function App() {
   async function cargarInicial() {
     setVista("cargando");
     setErrorCarga(null);
+    if (configError) {
+      setErrorCarga(configError);
+      setVista("error");
+      return;
+    }
     try {
       const [u, c, sesion] = await Promise.all([getUnits(), getConfig(), getSesionStaff()]);
       setUnits(u);
