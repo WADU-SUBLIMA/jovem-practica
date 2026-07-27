@@ -4,3 +4,13 @@
 
 html, body, #root { height: 100%; }
 body { margin: 0; -webkit-font-smoothing: antialiased; }
+
+/* Oculta la barra de scroll (queda el gesto/rueda funcionando igual),
+   para que no rompa las esquinas redondeadas de la tarjeta en escritorio. */
+.oculta-scrollbar {
+  scrollbar-width: none;       /* Firefox */
+  -ms-overflow-style: none;    /* Edge legado */
+}
+.oculta-scrollbar::-webkit-scrollbar {
+  display: none;                /* Chrome, Safari, Edge moderno */
+}

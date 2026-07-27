@@ -132,8 +132,12 @@ import {
             como una tarjeta centrada con sombra sobre un fondo con
             degradado verde — en el celular no cambia nada, porque el ancho
             de la tarjeta ya coincide exacto con el de la pantalla.
+   2.12.1 — Corrección: en escritorio se veía la barra de scroll del
+            navegador como una franja recta y gris que rompía las esquinas
+            redondeadas de la tarjeta. Ahora el scroll sigue funcionando
+            igual (rueda del mouse, gestos) pero la barra queda oculta.
 */
-const APP_VERSION = "2.12.0";
+const APP_VERSION = "2.12.1";
 const APP_CREDITS = "Wayvas · Wayller Vargas Sandoval";
 
 /* ========================================================================== */
@@ -145,11 +149,13 @@ function Shell({ children }) {
       className="min-h-screen w-full flex justify-center md:items-center md:py-10"
       style={{ background: `linear-gradient(160deg, ${C.bosque}, ${C.broteOscuro})` }}
     >
-      <div
-        className="w-full max-w-md min-h-screen flex flex-col shadow-2xl md:rounded-[2rem] md:h-[850px] md:max-h-[85vh] md:overflow-y-auto"
-        style={{ background: C.crema, fontFamily: FONT_BODY }}
-      >
-        {children}
+      <div className="w-full max-w-md min-h-screen flex flex-col shadow-2xl md:h-[850px] md:max-h-[85vh] md:rounded-[2rem] md:overflow-hidden">
+        <div
+          className="flex flex-col flex-1 md:overflow-y-auto oculta-scrollbar"
+          style={{ background: C.crema, fontFamily: FONT_BODY }}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );
