@@ -120,8 +120,11 @@ import {
             y completa, con botón "Volver al resultado" y su propio botón
             "Guardar PDF" (además del que ya estaba en la pantalla de
             resultados), para exportar sin tener que volver atrás primero.
+   2.11.1 — Reordenar la portada: "Guía JOVEM · Innovación y Emprendimiento"
+            pasa a ir justo después del header, y la frase motivadora
+            queda después de esa línea (antes iba primero la frase).
 */
-const APP_VERSION = "2.11.0";
+const APP_VERSION = "2.11.1";
 const APP_CREDITS = "Wayvas · Wayller Vargas Sandoval";
 
 /* ========================================================================== */
@@ -518,7 +521,11 @@ function Portada({ staff, onPracticaCompleta, onElegirUnidad, onStaff }) {
         </button>
       </div>
 
-      <div className="relative rounded-3xl p-5 pr-16 mt-5 overflow-hidden" style={{ background: C.hoja, minHeight: 84 }}>
+      <p className="text-sm font-semibold mt-5" style={{ color: C.brote }}>
+        Guía JOVEM · Innovación y Emprendimiento
+      </p>
+
+      <div className="relative rounded-3xl p-5 pr-16 mt-3 overflow-hidden" style={{ background: C.hoja, minHeight: 84 }}>
         <Sparkles size={18} color={C.brote} className="mb-2" />
         <p
           style={{
@@ -536,9 +543,6 @@ function Portada({ staff, onPracticaCompleta, onElegirUnidad, onStaff }) {
 
       <div className="flex-1 flex flex-col justify-center gap-6 py-8">
         <div>
-          <p className="text-sm font-semibold mb-2" style={{ color: C.brote }}>
-            Guía JOVEM · Innovación y Emprendimiento
-          </p>
           <h1 style={{ fontFamily: FONT_DISPLAY, color: C.bosque }} className="text-[26px] font-extrabold leading-tight">
             Prepárate para tu certificación
           </h1>
