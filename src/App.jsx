@@ -65,8 +65,19 @@ import {
            · Subtítulo recortado: se quitó "Sin registro ni contraseña."
            · "Guardar PDF" ya no abre el diálogo de impresión: genera un
              archivo PDF real con jsPDF y lo descarga directo al dispositivo.
+   2.4.0 — Dos correcciones importantes:
+           · "Guardar PDF" mostraba estado de "trabado" porque la generación
+             (síncrona, con 30 preguntas) congelaba el botón sin avisar nada.
+             Ahora muestra "Generando PDF..." con animación y cede el hilo
+             antes de empezar, para que el aviso se alcance a pintar.
+           · Si la página se recargaba por accidente durante una práctica,
+             se perdía todo el avance. Ahora: (1) se guarda el progreso en
+             el dispositivo en cada respuesta, (2) el navegador pide
+             confirmación antes de recargar/cerrar mientras hay una práctica
+             activa, y (3) si aun así se recarga, al volver a abrir la app
+             se ofrece continuar exactamente donde quedó o empezar de nuevo.
 */
-const APP_VERSION = "2.3.0";
+const APP_VERSION = "2.4.0";
 const APP_CREDITS = "Wayvas · Wayller Vargas Sandoval";
 
 /* ========================================================================== */
@@ -115,6 +126,40 @@ function PieCreditos({ className = "" }) {
   );
 }
 
+/* ---------------------------------------------------------------------- */
+/* Guardar el avance de la práctica en el dispositivo, por si se recarga  */
+/* la página por accidente. No es información personal del servidor:      */
+/* vive solo en este navegador y se borra al terminar o salir a propósito.*/
+/* ---------------------------------------------------------------------- */
+const CLAVE_PROGRESO = "jovem:progreso-en-curso";
+
+function guardarProgreso(datos) {
+  try {
+    localStorage.setItem(CLAVE_PROGRESO, JSON.stringify({ v: 1, ...datos }));
+  } catch {
+    // almacenamiento no disponible (modo privado, cuota llena, etc.) — no es crítico
+  }
+}
+
+function leerProgreso() {
+  try {
+    const bruto = localStorage.getItem(CLAVE_PROGRESO);
+    if (!bruto) return null;
+    const datos = JSON.parse(bruto);
+    if (datos?.v !== 1 || !Array.isArray(datos.preguntas) || !datos.preguntas.length) return null;
+    if (!datos.finTiempo || datos.finTiempo <= Date.now()) return null; // el tiempo ya se agotó
+    return datos;
+  } catch {
+    return null;
+  }
+}
+
+function borrarProgreso() {
+  try {
+    localStorage.removeItem(CLAVE_PROGRESO);
+  } catch {}
+}
+
 /* ========================================================================== */
 /* App                                                                        */
 /* ========================================================================== */
@@ -146,6 +191,7 @@ export default function App() {
   const [confirmarFin, setConfirmarFin] = useState(false);
 
   const [staff, setStaff] = useState(null);
+  const [progresoDetectado, setProgresoDetectado] = useState(null);
   const visitaRegistrada = useRef(false);
 
   async function cargarInicial() {
@@ -165,7 +211,13 @@ export default function App() {
         visitaRegistrada.current = true;
         logVisit().catch(() => {});
       }
-      setVista("portada");
+      const guardado = leerProgreso();
+      if (guardado) {
+        setProgresoDetectado(guardado);
+        setVista("reanudar");
+      } else {
+        setVista("portada");
+      }
     } catch (e) {
       setErrorCarga(e?.message || "Revisa tu conexión a internet.");
       setVista("error");
@@ -173,6 +225,46 @@ export default function App() {
   }
 
   useEffect(() => { cargarInicial(); }, []);
+
+  // Guarda el avance automáticamente mientras hay una práctica activa,
+  // para poder recuperarla si la página se recarga por accidente.
+  useEffect(() => {
+    if (vista === "examen" && preguntas.length) {
+      guardarProgreso({ preguntas, respuestas, actual, finTiempo, nombre, nivel, ultimoInicio });
+    }
+  }, [vista, preguntas, respuestas, actual, finTiempo, nombre, nivel, ultimoInicio]);
+
+  // Aviso nativo del navegador si intenta recargar o cerrar con una práctica activa.
+  useEffect(() => {
+    if (vista !== "examen") return;
+    function alIntentarSalir(e) {
+      e.preventDefault();
+      e.returnValue = "";
+      return "";
+    }
+    window.addEventListener("beforeunload", alIntentarSalir);
+    return () => window.removeEventListener("beforeunload", alIntentarSalir);
+  }, [vista]);
+
+  function continuarProgreso() {
+    const g = progresoDetectado;
+    if (!g) { setVista("portada"); return; }
+    setPreguntas(g.preguntas);
+    setRespuestas(g.respuestas);
+    setActual(g.actual || 0);
+    setFinTiempo(g.finTiempo);
+    setNombre(g.nombre || "");
+    setNivel(g.nivel || "");
+    setUltimoInicio(g.ultimoInicio || { mode: "full", unitId: null });
+    setProgresoDetectado(null);
+    setVista("examen");
+  }
+
+  function descartarProgreso() {
+    borrarProgreso();
+    setProgresoDetectado(null);
+    setVista("portada");
+  }
 
   async function iniciarPractica(mode, unitId) {
     setVista("cargando");
@@ -216,6 +308,7 @@ export default function App() {
       const payload = preguntas.map((q, i) => ({ question_id: q.id, selected: respuestas[i] }));
       const r = await submitPractice(payload, nivel || null);
       setResultado(r);
+      borrarProgreso();
       setVista("resultados");
     } catch (e) {
       setErrorCarga(e?.message || "No se pudo enviar la práctica.");
@@ -227,6 +320,7 @@ export default function App() {
 
   function salirExamen() {
     setConfirmarSalida(false);
+    borrarProgreso();
     setPreguntas([]); setRespuestas([]); setActual(0);
     setResultado(null); setFinTiempo(null);
     setVista("portada");
@@ -245,6 +339,14 @@ export default function App() {
 
   return (
     <Shell>
+      {vista === "reanudar" && progresoDetectado && (
+        <ReanudarPractica
+          progreso={progresoDetectado}
+          onContinuar={continuarProgreso}
+          onDescartar={descartarProgreso}
+        />
+      )}
+
       {vista === "portada" && (
         <Portada
           staff={staff}
@@ -475,6 +577,38 @@ function SelectorUnidades({ units, onCerrar, onElegir }) {
 /* ========================================================================== */
 /* Datos del estudiante                                                       */
 /* ========================================================================== */
+function ReanudarPractica({ progreso, onContinuar, onDescartar }) {
+  const respondidas = (progreso.respuestas || []).filter((r) => r !== null).length;
+  const total = progreso.preguntas?.length || 0;
+  const minutosRestantes = Math.max(1, Math.round((progreso.finTiempo - Date.now()) / 60000));
+
+  return (
+    <div className="flex flex-col flex-1 px-6 pt-10 pb-8 justify-center">
+      <div className="w-14 h-14 rounded-full flex items-center justify-center mb-4" style={{ background: C.hoja }}>
+        <Clock size={24} color={C.brote} />
+      </div>
+      <h1 style={{ fontFamily: FONT_DISPLAY, color: C.bosque }} className="text-2xl font-extrabold leading-tight mb-1">
+        Tenías una práctica sin terminar
+      </h1>
+      <p className="text-[15px] mb-6" style={{ color: C.tintaSuave }}>
+        {progreso.nombre ? `${progreso.nombre}, l` : "L"}levás {respondidas} de {total} preguntas respondidas
+        y quedan aproximadamente {minutosRestantes} {minutosRestantes === 1 ? "minuto" : "minutos"}.
+      </p>
+
+      <button onClick={onContinuar}
+        className="w-full rounded-2xl py-4 font-bold text-white shadow-lg mb-3"
+        style={{ background: C.brote, fontFamily: FONT_DISPLAY }}>
+        Continuar donde quedé
+      </button>
+      <button onClick={onDescartar}
+        className="w-full rounded-2xl py-3.5 font-semibold text-sm"
+        style={{ background: "white", color: C.coral, border: `2px solid ${C.hojaBorde}` }}>
+        Empezar de nuevo
+      </button>
+    </div>
+  );
+}
+
 function DatosEstudiante({ modo, nombre, setNombre, nivel, setNivel, onVolver, onComenzar }) {
   const valido = nombre.trim().length > 0 && !!nivel;
   return (
@@ -881,14 +1015,29 @@ function generarPDFReporte({ resultado, units, nombre, nivel, datosGrafica }) {
 }
 
 function descargarPDFReporte(datos) {
-  const doc = generarPDFReporte(datos);
-  const fechaArchivo = new Date().toISOString().slice(0, 10);
-  const nombreSeguro = (datos.nombre || "estudiante").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "-");
-  doc.save(`jovem-reporte-${nombreSeguro}-${fechaArchivo}.pdf`);
+  return new Promise((resolve, reject) => {
+    // setTimeout cede el control al navegador un instante, para que la animación
+    // de "Generando..." se alcance a pintar ANTES de que arranque el trabajo
+    // pesado (armar el PDF), que es síncrono y puede tardar un momento notable
+    // con 30 preguntas — sin esto, el botón se siente "trabado" sin avisar nada.
+    setTimeout(() => {
+      try {
+        const doc = generarPDFReporte(datos);
+        const fechaArchivo = new Date().toISOString().slice(0, 10);
+        const nombreSeguro = (datos.nombre || "estudiante").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "-");
+        doc.save(`jovem-reporte-${nombreSeguro}-${fechaArchivo}.pdf`);
+        resolve();
+      } catch (e) {
+        reject(e);
+      }
+    }, 30);
+  });
 }
 
 function VistaResultados({ resultado, units, nombre, nivel, onNuevoIntento, onInicio }) {
   const [verRepaso, setVerRepaso] = useState(false);
+  const [generandoPDF, setGenerandoPDF] = useState(false);
+  const [errorPDF, setErrorPDF] = useState("");
   const nota = Math.round(resultado.score);
 
   const datosGrafica = useMemo(() => units.map((u) => {
@@ -896,6 +1045,19 @@ function VistaResultados({ resultado, units, nombre, nivel, onNuevoIntento, onIn
     if (!b || !b.total) return null;
     return { short: u.short, pct: Math.round((b.correct / b.total) * 100) };
   }).filter(Boolean), [resultado, units]);
+
+  async function manejarGuardarPDF() {
+    if (generandoPDF) return;
+    setGenerandoPDF(true);
+    setErrorPDF("");
+    try {
+      await descargarPDFReporte({ resultado, units, nombre, nivel, datosGrafica });
+    } catch (e) {
+      setErrorPDF("No se pudo generar el PDF. Intenta de nuevo.");
+    } finally {
+      setGenerandoPDF(false);
+    }
+  }
 
   return (
     <div className="flex flex-col flex-1 px-6 pt-8 pb-8">
@@ -973,11 +1135,14 @@ function VistaResultados({ resultado, units, nombre, nivel, onNuevoIntento, onIn
         </div>
       )}
 
-      <button onClick={() => descargarPDFReporte({ resultado, units, nombre, nivel, datosGrafica })}
-        className="w-full rounded-2xl py-3.5 font-bold flex items-center justify-center gap-2 mb-3"
+      <button onClick={manejarGuardarPDF} disabled={generandoPDF}
+        className="w-full rounded-2xl py-3.5 font-bold flex items-center justify-center gap-2 mb-2 disabled:opacity-70 active:scale-[0.98] transition-transform"
         style={{ background: C.sol, color: C.tinta, fontFamily: FONT_DISPLAY }}>
-        <Download size={17} /> Guardar PDF
+        {generandoPDF ? <><Loader2 size={17} className="animate-spin" /> Generando PDF…</> : <><Download size={17} /> Guardar PDF</>}
       </button>
+      {errorPDF && (
+        <p className="text-xs font-semibold text-center mb-2" style={{ color: C.coral }}>{errorPDF}</p>
+      )}
 
       <button onClick={onNuevoIntento}
         className="w-full rounded-2xl py-4 font-bold text-white shadow-lg flex items-center justify-center gap-2"
