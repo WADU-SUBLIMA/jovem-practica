@@ -111,8 +111,12 @@ import {
    2.9.0 — Tilde en el nombre de la marca: "JOVEM Practica" → "JOVEM Práctica"
            en el logotipo, el pie de página, el PDF exportado, el título de
            la pestaña del navegador y la documentación del proyecto.
+   2.10.0 — El aviso de "Te faltan N preguntas" al finalizar ahora muestra
+            el número exacto de cada pregunta sin responder, y cada número
+            es tocable: lleva directo a esa pregunta sin tener que salir
+            del aviso y buscarla a mano.
 */
-const APP_VERSION = "2.9.0";
+const APP_VERSION = "2.10.0";
 const APP_CREDITS = "Wayvas · Wayller Vargas Sandoval";
 
 /* ========================================================================== */
@@ -439,8 +443,10 @@ export default function App() {
       {confirmarFin && (
         <ConfirmarFin
           faltantes={respuestas.filter((r) => r === null).length}
+          pendientes={respuestas.map((r, i) => (r === null ? i : null)).filter((i) => i !== null)}
           onCancelar={() => setConfirmarFin(false)}
           onConfirmar={finalizar}
+          onIrA={(i) => { setActual(i); setConfirmarFin(false); }}
         />
       )}
 
@@ -838,7 +844,7 @@ function ConfirmarSalida({ respondidas, onCancelar, onConfirmar }) {
   );
 }
 
-function ConfirmarFin({ faltantes, onCancelar, onConfirmar }) {
+function ConfirmarFin({ faltantes, pendientes, onCancelar, onConfirmar, onIrA }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6">
       <div className="w-full max-w-sm rounded-3xl p-6 text-center" style={{ background: "white" }}>
@@ -848,9 +854,27 @@ function ConfirmarFin({ faltantes, onCancelar, onConfirmar }) {
         <h3 style={{ fontFamily: FONT_DISPLAY, color: C.bosque }} className="text-lg font-bold mb-1">
           Te faltan {faltantes} {faltantes === 1 ? "pregunta" : "preguntas"}
         </h3>
-        <p className="text-sm mb-5" style={{ color: C.tintaSuave }}>
+        <p className="text-sm mb-4" style={{ color: C.tintaSuave }}>
           Las preguntas sin responder contarán como incorrectas. ¿Deseas finalizar de todas formas?
         </p>
+
+        {pendientes.length > 0 && (
+          <div className="mb-5">
+            <p className="text-[11px] font-semibold uppercase tracking-wide mb-2" style={{ color: C.tintaSuave }}>
+              Tocá un número para ir directo a esa pregunta
+            </p>
+            <div className="flex flex-wrap justify-center gap-1.5">
+              {pendientes.map((i) => (
+                <button key={i} onClick={() => onIrA(i)}
+                  className="w-8 h-8 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0"
+                  style={{ background: C.coralClaro, color: C.coral, border: `1.5px solid ${C.coral}` }}>
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex gap-3">
           <button onClick={onCancelar} className="flex-1 rounded-xl py-3 font-semibold text-sm" style={{ background: C.hoja, color: C.bosque }}>
             Seguir practicando
