@@ -97,8 +97,17 @@ import {
              solo sus propios pendientes, y la de creación exige que el
              autor sea él mismo — antes de este cambio ambas reglas tenían
              un hueco que hubiera dejado ver/crear más de la cuenta.
+   2.8.0 — Ajustes al banco de preguntas:
+           · Pestaña "Archivadas" ahora en color azul (antes era el mismo
+             verde que "Activas", poco distinguible).
+           · Las 3 pestañas ya no saltan de línea en pantallas angostas.
+           · Asesor y admin ahora ven "Enviado por: [nombre]" en cada
+             pregunta creada por un generador de ítems (antes no había forma
+             de saber quién la envió). Requirió ampliar en la base de datos
+             quién puede leer nombres de otro personal: antes solo el admin,
+             ahora también el asesor.
 */
-const APP_VERSION = "2.7.0";
+const APP_VERSION = "2.8.0";
 const APP_CREDITS = "Wayvas · Wayller Vargas Sandoval";
 
 /* ========================================================================== */
@@ -1557,7 +1566,7 @@ function PestanaPreguntas({ rol, propioId, units, preguntas, onNueva, onEditar, 
       ) : (
         <div className="flex gap-1.5">
           <button onClick={() => setFiltro("activas")}
-            className="flex-1 rounded-lg py-2 text-[13px] font-semibold"
+            className="flex-1 rounded-lg py-2 px-1 text-[12px] font-semibold whitespace-nowrap"
             style={{
               background: filtro === "activas" ? C.brote : "white",
               color: filtro === "activas" ? "white" : C.bosque,
@@ -1566,22 +1575,22 @@ function PestanaPreguntas({ rol, propioId, units, preguntas, onNueva, onEditar, 
             Activas ({activas.length})
           </button>
           <button onClick={() => setFiltro("pendientes")}
-            className="flex-1 rounded-lg py-2 text-[13px] font-semibold flex items-center justify-center gap-1"
+            className="flex-1 rounded-lg py-2 px-1 text-[12px] font-semibold whitespace-nowrap"
             style={{
               background: filtro === "pendientes" ? C.sol : "white",
               color: filtro === "pendientes" ? C.tinta : C.bosque,
               border: `2px solid ${filtro === "pendientes" ? C.sol : C.hojaBorde}`,
             }}>
-            <Clock size={12} /> Por aprobar ({pendientes.length})
+            Por aprobar ({pendientes.length})
           </button>
           <button onClick={() => setFiltro("archivadas")}
-            className="flex-1 rounded-lg py-2 text-[13px] font-semibold flex items-center justify-center gap-1"
+            className="flex-1 rounded-lg py-2 px-1 text-[12px] font-semibold whitespace-nowrap"
             style={{
-              background: filtro === "archivadas" ? C.brote : "white",
+              background: filtro === "archivadas" ? C.azul : "white",
               color: filtro === "archivadas" ? "white" : C.bosque,
-              border: `2px solid ${filtro === "archivadas" ? C.brote : C.hojaBorde}`,
+              border: `2px solid ${filtro === "archivadas" ? C.azul : C.hojaBorde}`,
             }}>
-            <Archive size={12} /> Archivadas ({archivadas.length})
+            Archivadas ({archivadas.length})
           </button>
         </div>
       )}
@@ -1610,6 +1619,11 @@ function PestanaPreguntas({ rol, propioId, units, preguntas, onNueva, onEditar, 
                       {q.type}{q.status === "pending" && " · pendiente"}{q.archived && " · archivada"}
                     </span>
                     <p className="text-xs mt-0.5 line-clamp-2" style={{ color: C.tinta }}>{q.stem}</p>
+                    {q.creador?.full_name && (
+                      <p className="text-[10px] mt-1" style={{ color: C.tintaSuave }}>
+                        Enviado por: <span className="font-semibold">{q.creador.full_name}</span>
+                      </p>
+                    )}
                   </div>
                   {filaAcciones(q)}
                 </div>

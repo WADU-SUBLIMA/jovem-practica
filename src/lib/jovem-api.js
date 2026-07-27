@@ -207,7 +207,7 @@ export async function eliminarUsuario(id) {
 export async function listarPreguntas() {
   const { data, error } = await supabase
     .from("questions")
-    .select("*")
+    .select("*, creador:profiles!created_by(full_name)")
     .order("unit_id")
     .order("created_at");
   if (error) throw error;

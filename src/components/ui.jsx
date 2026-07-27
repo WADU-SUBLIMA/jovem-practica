@@ -27,6 +27,8 @@ export const C = {
   coralClaro: "#FBE4E6",
   turquesa: "#2A9D8F",   // acento — rol "generador de ítems"
   turquesaClara: "#DFF3F1",
+  azul: "#2F6FED",       // acento — estado "archivada"
+  azulClaro: "#E1EAFD",
   crema: "#FAFAF6",      // fondo general
   tinta: "#16241C",      // texto principal
   tintaSuave: "#4B5D53",

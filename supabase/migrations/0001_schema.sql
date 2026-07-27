@@ -146,7 +146,7 @@ create policy units_read_all on public.units for select using (true);
 -- Perfiles: cada quien ve el suyo; el admin ve y administra todos
 drop policy if exists profiles_self_read on public.profiles;
 create policy profiles_self_read on public.profiles
-  for select using (id = auth.uid() or public.is_admin());
+  for select using (id = auth.uid() or public.app_role() in ('admin','asesor'));
 
 drop policy if exists profiles_admin_write on public.profiles;
 create policy profiles_admin_write on public.profiles
