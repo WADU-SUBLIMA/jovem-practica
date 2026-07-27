@@ -115,8 +115,13 @@ import {
             el número exacto de cada pregunta sin responder, y cada número
             es tocable: lleva directo a esa pregunta sin tener que salir
             del aviso y buscarla a mano.
+   2.11.0 — "Revisar preguntas" ya no expande la lista hacia abajo en la
+            misma pantalla de resultados: ahora abre una pantalla propia
+            y completa, con botón "Volver al resultado" y su propio botón
+            "Guardar PDF" (además del que ya estaba en la pantalla de
+            resultados), para exportar sin tener que volver atrás primero.
 */
-const APP_VERSION = "2.10.0";
+const APP_VERSION = "2.11.0";
 const APP_CREDITS = "Wayvas · Wayller Vargas Sandoval";
 
 /* ========================================================================== */
@@ -1094,7 +1099,7 @@ function descargarPDFReporte(datos) {
 }
 
 function VistaResultados({ resultado, units, nombre, nivel, onNuevoIntento, onInicio }) {
-  const [verRepaso, setVerRepaso] = useState(false);
+  const [verRevision, setVerRevision] = useState(false);
   const [generandoPDF, setGenerandoPDF] = useState(false);
   const [errorPDF, setErrorPDF] = useState("");
   const nota = Math.round(resultado.score);
@@ -1116,6 +1121,68 @@ function VistaResultados({ resultado, units, nombre, nivel, onNuevoIntento, onIn
     } finally {
       setGenerandoPDF(false);
     }
+  }
+
+  const botonGuardarPDF = (
+    <>
+      <button onClick={manejarGuardarPDF} disabled={generandoPDF}
+        className="w-full rounded-2xl py-3.5 font-bold flex items-center justify-center gap-2 mb-2 disabled:opacity-70 active:scale-[0.98] transition-transform"
+        style={{ background: C.sol, color: C.tinta, fontFamily: FONT_DISPLAY }}>
+        {generandoPDF ? <><Loader2 size={17} className="animate-spin" /> Generando PDF…</> : <><Download size={17} /> Guardar PDF</>}
+      </button>
+      {errorPDF && (
+        <p className="text-xs font-semibold text-center mb-2" style={{ color: C.coral }}>{errorPDF}</p>
+      )}
+    </>
+  );
+
+  if (verRevision) {
+    return (
+      <div className="flex flex-col flex-1 px-6 pt-8 pb-8">
+        <button onClick={() => setVerRevision(false)} className="flex items-center gap-1 text-sm font-medium mb-4 self-start" style={{ color: C.tintaSuave }}>
+          <ChevronLeft size={16} /> Volver al resultado
+        </button>
+
+        <p style={{ fontFamily: FONT_DISPLAY, color: C.bosque }} className="text-xl font-bold mb-1">
+          Repaso de preguntas
+        </p>
+        <p className="text-sm mb-5" style={{ color: C.tintaSuave }}>
+          {resultado.correct} correctas de {resultado.total} — {nombre}{nivel ? ` · ${nivel}` : ""}
+        </p>
+
+        <div className="flex flex-col gap-3 mb-5">
+          {(resultado.detail || []).map((d, i) => (
+            <div key={d.question_id || i} className="rounded-2xl p-4 border-l-4"
+              style={{
+                background: "white", borderColor: d.is_correct ? C.brote : C.coral,
+                borderTop: `1px solid ${C.hojaBorde}`, borderRight: `1px solid ${C.hojaBorde}`, borderBottom: `1px solid ${C.hojaBorde}`,
+              }}>
+              <div className="flex items-start gap-2 mb-1.5">
+                <span className="text-xs font-bold flex-shrink-0 mt-0.5" style={{ color: C.tintaSuave }}>{i + 1}.</span>
+                {d.is_correct
+                  ? <CheckCircle2 size={16} color={C.brote} className="mt-0.5 flex-shrink-0" />
+                  : <XCircle size={16} color={C.coral} className="mt-0.5 flex-shrink-0" />}
+                <p className="text-sm font-semibold" style={{ color: C.tinta }}>{d.stem}</p>
+              </div>
+              {d.scenario && <p className="text-xs mb-1.5 ml-6 italic" style={{ color: C.tintaSuave }}>{d.scenario}</p>}
+              {d.selected === null || d.selected === undefined
+                ? <p className="text-xs mb-1 ml-6" style={{ color: C.coral }}>Sin responder</p>
+                : !d.is_correct && <p className="text-xs mb-1 ml-6" style={{ color: C.coral }}>Tu respuesta: {d.options[d.selected]}</p>}
+              <p className="text-xs mb-1.5 ml-6" style={{ color: C.broteOscuro }}>Correcta: {d.options[d.correct_index]}</p>
+              <p className="text-xs ml-6 leading-relaxed" style={{ color: C.tintaSuave }}>{d.explanation}</p>
+            </div>
+          ))}
+        </div>
+
+        {botonGuardarPDF}
+        <button onClick={() => setVerRevision(false)}
+          className="w-full rounded-2xl py-3.5 font-semibold text-sm mt-1"
+          style={{ background: "white", color: C.bosque, border: `2px solid ${C.hojaBorde}` }}>
+          Volver al resultado
+        </button>
+        <PieCreditos className="mt-4" />
+      </div>
+    );
   }
 
   return (
@@ -1161,47 +1228,14 @@ function VistaResultados({ resultado, units, nombre, nivel, onNuevoIntento, onIn
         </div>
       )}
 
-      <button onClick={() => setVerRepaso((v) => !v)}
+      <button onClick={() => setVerRevision(true)}
         className="w-full rounded-2xl py-3.5 font-bold flex items-center justify-center gap-2 mb-3"
-        style={{ background: verRepaso ? C.hoja : "white", color: C.bosque, border: `2px solid ${C.hojaBorde}`, fontFamily: FONT_DISPLAY }}>
-        <Eye size={17} /> {verRepaso ? "Ocultar preguntas" : `Revisar preguntas (${resultado.total})`}
-        <ChevronRight size={16} style={{ transform: verRepaso ? "rotate(90deg)" : "none", transition: "transform .2s" }} />
+        style={{ background: "white", color: C.bosque, border: `2px solid ${C.hojaBorde}`, fontFamily: FONT_DISPLAY }}>
+        <Eye size={17} /> Revisar preguntas ({resultado.total})
+        <ChevronRight size={16} />
       </button>
 
-      {verRepaso && (
-        <div className="flex flex-col gap-3 mb-5">
-          {(resultado.detail || []).map((d, i) => (
-            <div key={d.question_id || i} className="rounded-2xl p-4 border-l-4"
-              style={{
-                background: "white", borderColor: d.is_correct ? C.brote : C.coral,
-                borderTop: `1px solid ${C.hojaBorde}`, borderRight: `1px solid ${C.hojaBorde}`, borderBottom: `1px solid ${C.hojaBorde}`,
-              }}>
-              <div className="flex items-start gap-2 mb-1.5">
-                <span className="text-xs font-bold flex-shrink-0 mt-0.5" style={{ color: C.tintaSuave }}>{i + 1}.</span>
-                {d.is_correct
-                  ? <CheckCircle2 size={16} color={C.brote} className="mt-0.5 flex-shrink-0" />
-                  : <XCircle size={16} color={C.coral} className="mt-0.5 flex-shrink-0" />}
-                <p className="text-sm font-semibold" style={{ color: C.tinta }}>{d.stem}</p>
-              </div>
-              {d.scenario && <p className="text-xs mb-1.5 ml-6 italic" style={{ color: C.tintaSuave }}>{d.scenario}</p>}
-              {d.selected === null || d.selected === undefined
-                ? <p className="text-xs mb-1 ml-6" style={{ color: C.coral }}>Sin responder</p>
-                : !d.is_correct && <p className="text-xs mb-1 ml-6" style={{ color: C.coral }}>Tu respuesta: {d.options[d.selected]}</p>}
-              <p className="text-xs mb-1.5 ml-6" style={{ color: C.broteOscuro }}>Correcta: {d.options[d.correct_index]}</p>
-              <p className="text-xs ml-6 leading-relaxed" style={{ color: C.tintaSuave }}>{d.explanation}</p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <button onClick={manejarGuardarPDF} disabled={generandoPDF}
-        className="w-full rounded-2xl py-3.5 font-bold flex items-center justify-center gap-2 mb-2 disabled:opacity-70 active:scale-[0.98] transition-transform"
-        style={{ background: C.sol, color: C.tinta, fontFamily: FONT_DISPLAY }}>
-        {generandoPDF ? <><Loader2 size={17} className="animate-spin" /> Generando PDF…</> : <><Download size={17} /> Guardar PDF</>}
-      </button>
-      {errorPDF && (
-        <p className="text-xs font-semibold text-center mb-2" style={{ color: C.coral }}>{errorPDF}</p>
-      )}
+      {botonGuardarPDF}
 
       <button onClick={onNuevoIntento}
         className="w-full rounded-2xl py-4 font-bold text-white shadow-lg flex items-center justify-center gap-2"
