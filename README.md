@@ -1,4 +1,4 @@
-# JOVEM Practica
+# JOVEM Práctica
 
 App web de práctica para el examen de certificación de Innovación y Emprendimiento (Guía JOVEM, Costa Rica).
 

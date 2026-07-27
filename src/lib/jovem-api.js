@@ -1,5 +1,5 @@
 // ============================================================================
-// JOVEM Practica — Capa de datos sobre Supabase
+// JOVEM Práctica — Capa de datos sobre Supabase
 // ============================================================================
 // Reemplaza el almacenamiento local del prototipo. Cada función corresponde
 // a algo que la app ya hace hoy.

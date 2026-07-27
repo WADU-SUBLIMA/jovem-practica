@@ -1,4 +1,4 @@
-# Conectar JOVEM Practica con Supabase
+# Conectar JOVEM Práctica con Supabase
 
 Guía para pasar del prototipo (que guarda todo en el navegador) a una base de
 datos real, aprovechando que ya tienes Supabase conectado a GitHub.
@@ -31,7 +31,7 @@ archivo nuevo dentro de `supabase/migrations/` al hacer push:
 
 ```bash
 git add supabase/ src/
-git commit -m "Base de datos JOVEM Practica en Supabase"
+git commit -m "Base de datos JOVEM Práctica en Supabase"
 git push
 ```
 

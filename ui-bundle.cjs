@@ -62703,7 +62703,7 @@ function Logo({ size = 28 }) {
     ),
     /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontFamily: FONT_DISPLAY, color: C.bosque }, className: "text-xl font-bold tracking-tight", children: [
       "JOVEM ",
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: C.brote }, children: "Practica" })
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: C.brote }, children: "Pr\xE1ctica" })
     ] })
   ] });
 }

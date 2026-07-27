@@ -1,5 +1,5 @@
 // ============================================================================
-// JOVEM Practica — Identidad visual y componentes compartidos
+// JOVEM Práctica — Identidad visual y componentes compartidos
 // ============================================================================
 // Todo lo puramente visual vive aquí, sin lógica de datos.
 // ============================================================================
@@ -206,7 +206,7 @@ export function Logo({ size = 28 }) {
         <Sprout size={size} color={C.brote} strokeWidth={2.4} />
       </div>
       <span style={{ fontFamily: FONT_DISPLAY, color: C.bosque }} className="text-xl font-bold tracking-tight">
-        JOVEM <span style={{ color: C.brote }}>Practica</span>
+        JOVEM <span style={{ color: C.brote }}>Práctica</span>
       </span>
     </div>
   );

@@ -12,7 +12,7 @@ class ErrorBoundary extends React.Component {
     return { error };
   }
   componentDidCatch(error, info) {
-    console.error("JOVEM Practica — error no capturado:", error, info);
+    console.error("JOVEM Práctica — error no capturado:", error, info);
   }
   render() {
     if (this.state.error) {

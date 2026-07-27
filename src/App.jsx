@@ -1,5 +1,5 @@
 // ============================================================================
-// JOVEM Practica — Aplicación (versión conectada a Supabase)
+// JOVEM Práctica — Aplicación (versión conectada a Supabase)
 // ============================================================================
 // Diferencias clave respecto al prototipo:
 //   * Las preguntas, la configuración y los usuarios viven en la base de datos.
@@ -108,8 +108,11 @@ import {
              ahora también el asesor.
    2.8.1 — Corrección de tilde: "Practica" → "Práctica" en el subtítulo de
            la portada.
+   2.9.0 — Tilde en el nombre de la marca: "JOVEM Practica" → "JOVEM Práctica"
+           en el logotipo, el pie de página, el PDF exportado, el título de
+           la pestaña del navegador y la documentación del proyecto.
 */
-const APP_VERSION = "2.8.1";
+const APP_VERSION = "2.9.0";
 const APP_CREDITS = "Wayvas · Wayller Vargas Sandoval";
 
 /* ========================================================================== */
@@ -153,7 +156,7 @@ function AvisoError({ mensaje, onReintentar }) {
 function PieCreditos({ className = "" }) {
   return (
     <p className={`text-center text-[10px] ${className}`} style={{ color: C.tintaSuave, opacity: 0.75 }}>
-      JOVEM Practica v{APP_VERSION} · Creado por {APP_CREDITS}
+      JOVEM Práctica v{APP_VERSION} · Creado por {APP_CREDITS}
     </p>
   );
 }
@@ -889,7 +892,7 @@ function generarPDFReporte({ resultado, units, nombre, nivel, datosGrafica }) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(17);
   doc.setTextColor(...verdeOscuro);
-  doc.text("JOVEM Practica", margin, y);
+  doc.text("JOVEM Práctica", margin, y);
   doc.setFontSize(12);
   doc.setFont("helvetica", "normal");
   y += 7;
@@ -1041,7 +1044,7 @@ function generarPDFReporte({ resultado, units, nombre, nivel, datosGrafica }) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...gris);
-  doc.text(`JOVEM Practica v${APP_VERSION} · Creado por ${APP_CREDITS}`, pageW / 2, y, { align: "center" });
+  doc.text(`JOVEM Práctica v${APP_VERSION} · Creado por ${APP_CREDITS}`, pageW / 2, y, { align: "center" });
 
   return doc;
 }
