@@ -106,8 +106,10 @@ import {
              de saber quién la envió). Requirió ampliar en la base de datos
              quién puede leer nombres de otro personal: antes solo el admin,
              ahora también el asesor.
+   2.8.1 — Corrección de tilde: "Practica" → "Práctica" en el subtítulo de
+           la portada.
 */
-const APP_VERSION = "2.8.0";
+const APP_VERSION = "2.8.1";
 const APP_CREDITS = "Wayvas · Wayller Vargas Sandoval";
 
 /* ========================================================================== */
@@ -527,7 +529,7 @@ function Portada({ staff, onPracticaCompleta, onElegirUnidad, onStaff }) {
             Prepárate para tu certificación
           </h1>
           <p className="mt-3 text-[15px]" style={{ color: C.tintaSuave }}>
-            Practica conceptos y casos reales de las 7 unidades.
+            Práctica conceptos y casos reales de las 7 unidades.
           </p>
         </div>
 
