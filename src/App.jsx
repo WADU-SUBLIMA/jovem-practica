@@ -125,8 +125,15 @@ import {
             queda después de esa línea (antes iba primero la frase).
    2.11.2 — Menos espacio entre la frase motivadora y el título "Prepárate
             para tu certificación".
+   2.12.0 — Mejor aspecto en pantallas grandes (computadora): la app siempre
+            fue diseñada ancho-de-celular a propósito, pero al abrirla en
+            una pantalla ancha quedaba como una tira angosta perdida en un
+            fondo blanco vacío. Ahora, en pantallas de escritorio, se ve
+            como una tarjeta centrada con sombra sobre un fondo con
+            degradado verde — en el celular no cambia nada, porque el ancho
+            de la tarjeta ya coincide exacto con el de la pantalla.
 */
-const APP_VERSION = "2.11.2";
+const APP_VERSION = "2.12.0";
 const APP_CREDITS = "Wayvas · Wayller Vargas Sandoval";
 
 /* ========================================================================== */
@@ -134,8 +141,16 @@ const APP_CREDITS = "Wayvas · Wayller Vargas Sandoval";
 /* ========================================================================== */
 function Shell({ children }) {
   return (
-    <div className="min-h-screen w-full" style={{ background: C.crema, fontFamily: FONT_BODY }}>
-      <div className="max-w-md mx-auto min-h-screen flex flex-col">{children}</div>
+    <div
+      className="min-h-screen w-full flex justify-center md:items-center md:py-10"
+      style={{ background: `linear-gradient(160deg, ${C.bosque}, ${C.broteOscuro})` }}
+    >
+      <div
+        className="w-full max-w-md min-h-screen flex flex-col shadow-2xl md:rounded-[2rem] md:h-[850px] md:max-h-[85vh] md:overflow-y-auto"
+        style={{ background: C.crema, fontFamily: FONT_BODY }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
