@@ -123,8 +123,10 @@ import {
    2.11.1 — Reordenar la portada: "Guía JOVEM · Innovación y Emprendimiento"
             pasa a ir justo después del header, y la frase motivadora
             queda después de esa línea (antes iba primero la frase).
+   2.11.2 — Menos espacio entre la frase motivadora y el título "Prepárate
+            para tu certificación".
 */
-const APP_VERSION = "2.11.1";
+const APP_VERSION = "2.11.2";
 const APP_CREDITS = "Wayvas · Wayller Vargas Sandoval";
 
 /* ========================================================================== */
@@ -541,7 +543,7 @@ function Portada({ staff, onPracticaCompleta, onElegirUnidad, onStaff }) {
         <Sprout size={44} color={C.broteOscuro} strokeWidth={1.25} className="absolute bottom-2 right-2 opacity-20" />
       </div>
 
-      <div className="flex-1 flex flex-col justify-center gap-6 py-8">
+      <div className="flex-1 flex flex-col justify-center gap-6 pt-4 pb-8">
         <div>
           <h1 style={{ fontFamily: FONT_DISPLAY, color: C.bosque }} className="text-[26px] font-extrabold leading-tight">
             Prepárate para tu certificación
