@@ -136,8 +136,15 @@ import {
             navegador como una franja recta y gris que rompía las esquinas
             redondeadas de la tarjeta. Ahora el scroll sigue funcionando
             igual (rueda del mouse, gestos) pero la barra queda oculta.
+   2.13.0 — Se revierte el marco tipo "tarjeta de celular" de la versión
+            2.12.0 — no era lo buscado: en computadora seguía viéndose
+            como pantalla de celular, solo que enmarcada en verde. Ahora
+            en computadora el contenido usa más ancho de pantalla (como
+            una página web), sin fondo de degradado ni bordes redondeados
+            de "mockup". El celular no cambia, sigue con el mismo ancho
+            de siempre.
 */
-const APP_VERSION = "2.12.1";
+const APP_VERSION = "2.13.0";
 const APP_CREDITS = "Wayvas · Wayller Vargas Sandoval";
 
 /* ========================================================================== */
@@ -145,17 +152,9 @@ const APP_CREDITS = "Wayvas · Wayller Vargas Sandoval";
 /* ========================================================================== */
 function Shell({ children }) {
   return (
-    <div
-      className="min-h-screen w-full flex justify-center md:items-center md:py-10"
-      style={{ background: `linear-gradient(160deg, ${C.bosque}, ${C.broteOscuro})` }}
-    >
-      <div className="w-full max-w-md min-h-screen flex flex-col shadow-2xl md:h-[850px] md:max-h-[85vh] md:rounded-[2rem] md:overflow-hidden">
-        <div
-          className="flex flex-col flex-1 md:overflow-y-auto oculta-scrollbar"
-          style={{ background: C.crema, fontFamily: FONT_BODY }}
-        >
-          {children}
-        </div>
+    <div className="min-h-screen w-full" style={{ background: C.crema, fontFamily: FONT_BODY }}>
+      <div className="w-full max-w-md md:max-w-2xl lg:max-w-3xl mx-auto min-h-screen flex flex-col">
+        {children}
       </div>
     </div>
   );
