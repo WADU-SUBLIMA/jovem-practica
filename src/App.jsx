@@ -30,7 +30,7 @@ import {
   startPractice, submitPractice,
   staffLogin, staffLogout, getSesionStaff,
   listarUsuarios, crearUsuario, actualizarUsuario, eliminarUsuario, restablecerClave,
-  listarPreguntas, guardarPregunta, archivarPregunta, eliminarPregunta,
+  listarPreguntas, guardarPregunta, aprobarPregunta, archivarPregunta, eliminarPregunta,
   getImpacto, configError,
 } from "./lib/jovem-api.js";
 
@@ -84,8 +84,21 @@ import {
            las archivadas aparecían mezcladas, apenas atenuadas). Y eliminar
            una pregunta ahora pide confirmación ("¿Estás seguro...?") con
            opción de cancelar, en vez de borrarla al toque sin avisar.
+   2.7.0 — Flujo de aprobación de ítems: lo que crea un generador de ítems ya
+           no aparece activo de inmediato. Queda "pendiente" hasta que un
+           asesor o admin lo aprueba.
+           · El generador de ítems ahora ve una pantalla propia y simple:
+             solo sus ítems pendientes ("Ítems pendientes por aprobar"), sin
+             ver ni poder tocar ninguna pregunta activa.
+           · Asesor y admin ven 3 pestañas: Activas / Por aprobar / Archivadas,
+             con un botón "Aprobar" en las pendientes.
+           · Reforzado también en la base de datos (no solo en la pantalla):
+             la regla de lectura ahora limita al generador de ítems a ver
+             solo sus propios pendientes, y la de creación exige que el
+             autor sea él mismo — antes de este cambio ambas reglas tenían
+             un hueco que hubiera dejado ver/crear más de la cuenta.
 */
-const APP_VERSION = "2.6.0";
+const APP_VERSION = "2.7.0";
 const APP_CREDITS = "Wayvas · Wayller Vargas Sandoval";
 
 /* ========================================================================== */
@@ -1293,7 +1306,7 @@ function Panel({ staff, units, config, setConfig, onSalir, onInicio }) {
 
   const pestanas = [
     ...(rol !== "item_creator" ? [{ id: "impacto", label: "Impacto", icon: BarChart3 }] : []),
-    ...(puedeEditarItems ? [{ id: "preguntas", label: "Preguntas", icon: Pencil }] : []),
+    ...(puedeEditarItems ? [{ id: "preguntas", label: rol === "item_creator" ? "Pendientes" : "Preguntas", icon: rol === "item_creator" ? Clock : Pencil }] : []),
     ...(esAdmin ? [{ id: "usuarios", label: "Usuarios", icon: Users }] : []),
     ...(puedeConfigurar ? [{ id: "config", label: "Prácticas", icon: Settings }] : []),
   ];
@@ -1347,9 +1360,11 @@ function Panel({ staff, units, config, setConfig, onSalir, onInicio }) {
 
           {pestana === "preguntas" && (
             <PestanaPreguntas
+              rol={rol} propioId={staff.id}
               units={units} preguntas={preguntas}
               onNueva={() => setEditandoPregunta({})}
               onEditar={(q) => setEditandoPregunta(q)}
+              onAprobar={async (q) => { await aprobarPregunta(q.id); cargar(); }}
               onArchivar={async (q) => { await archivarPregunta(q.id, !q.archived); cargar(); }}
               onEliminar={async (q) => { await eliminarPregunta(q.id); cargar(); }}
             />
@@ -1380,7 +1395,14 @@ function Panel({ staff, units, config, setConfig, onSalir, onInicio }) {
           units={units}
           inicial={editandoPregunta}
           onCancelar={() => setEditandoPregunta(null)}
-          onGuardar={async (p) => { await guardarPregunta(p); setEditandoPregunta(null); cargar(); }}
+          onGuardar={async (p) => {
+            // El estado solo se decide al CREAR (p.id vacío). Editar un ítem
+            // existente no cambia su estado; aprobar es una acción aparte.
+            const datos = p.id ? p : { ...p, status: rol === "item_creator" ? "pending" : "approved" };
+            await guardarPregunta(datos);
+            setEditandoPregunta(null);
+            cargar();
+          }}
         />
       )}
 
@@ -1457,12 +1479,59 @@ function PestanaImpacto({ impacto, datosGrafica, rango, setRango }) {
 }
 
 /* -------------------------- Pestaña: preguntas -------------------------- */
-function PestanaPreguntas({ units, preguntas, onNueva, onEditar, onArchivar, onEliminar }) {
-  const [filtro, setFiltro] = useState("activas"); // "activas" | "archivadas"
+function PestanaPreguntas({ rol, propioId, units, preguntas, onNueva, onEditar, onAprobar, onArchivar, onEliminar }) {
+  const esGenerador = rol === "item_creator";
+  const [filtro, setFiltro] = useState("activas"); // "activas" | "pendientes" | "archivadas"
   const [porEliminar, setPorEliminar] = useState(null);
 
-  const visibles = preguntas.filter((q) => (filtro === "archivadas" ? q.archived : !q.archived));
-  const totalArchivadas = preguntas.filter((q) => q.archived).length;
+  // Para el generador de ítems, la base de datos ya le entrega SOLO sus
+  // propios ítems pendientes (RLS), así que no hace falta filtrar nada más:
+  // nunca ve ni puede tocar preguntas activas.
+  const pendientes = preguntas.filter((q) => q.status === "pending");
+  const activas = preguntas.filter((q) => q.status === "approved" && !q.archived);
+  const archivadas = preguntas.filter((q) => q.status === "approved" && q.archived);
+
+  const visibles = esGenerador ? pendientes
+    : filtro === "pendientes" ? pendientes
+    : filtro === "archivadas" ? archivadas
+    : activas;
+
+  function filaAcciones(q) {
+    if (esGenerador) {
+      // Solo puede tocar sus propios ítems, y solo mientras sigan pendientes.
+      return (
+        <div className="flex gap-1 flex-shrink-0">
+          <button onClick={() => onEditar(q)} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: C.hoja }}>
+            <Pencil size={13} color={C.brote} />
+          </button>
+          <button onClick={() => setPorEliminar(q)} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: C.coralClaro }}>
+            <Trash2 size={13} color={C.coral} />
+          </button>
+        </div>
+      );
+    }
+    return (
+      <div className="flex gap-1 flex-shrink-0">
+        {q.status === "pending" ? (
+          <button onClick={() => onAprobar(q)} title="Aprobar"
+            className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: C.hoja }}>
+            <CheckCircle2 size={13} color={C.brote} />
+          </button>
+        ) : (
+          <button onClick={() => onArchivar(q)} title={q.archived ? "Activar" : "Archivar"}
+            className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: C.hoja }}>
+            {q.archived ? <ArchiveRestore size={13} color={C.brote} /> : <Archive size={13} color={C.tintaSuave} />}
+          </button>
+        )}
+        <button onClick={() => onEditar(q)} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: C.hoja }}>
+          <Pencil size={13} color={C.brote} />
+        </button>
+        <button onClick={() => setPorEliminar(q)} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: C.coralClaro }}>
+          <Trash2 size={13} color={C.coral} />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -1472,30 +1541,54 @@ function PestanaPreguntas({ units, preguntas, onNueva, onEditar, onArchivar, onE
         <Plus size={16} /> Nueva pregunta
       </button>
 
-      <div className="flex gap-2">
-        <button onClick={() => setFiltro("activas")}
-          className="flex-1 rounded-lg py-2 text-sm font-semibold"
-          style={{
-            background: filtro === "activas" ? C.brote : "white",
-            color: filtro === "activas" ? "white" : C.bosque,
-            border: `2px solid ${filtro === "activas" ? C.brote : C.hojaBorde}`,
-          }}>
-          Activas ({preguntas.length - totalArchivadas})
-        </button>
-        <button onClick={() => setFiltro("archivadas")}
-          className="flex-1 rounded-lg py-2 text-sm font-semibold flex items-center justify-center gap-1"
-          style={{
-            background: filtro === "archivadas" ? C.brote : "white",
-            color: filtro === "archivadas" ? "white" : C.bosque,
-            border: `2px solid ${filtro === "archivadas" ? C.brote : C.hojaBorde}`,
-          }}>
-          <Archive size={13} /> Archivadas ({totalArchivadas})
-        </button>
-      </div>
+      {esGenerador ? (
+        <div className="rounded-2xl p-3.5 flex items-start gap-2.5" style={{ background: C.hoja }}>
+          <Clock size={16} color={C.broteOscuro} className="mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-bold" style={{ color: C.broteOscuro, fontFamily: FONT_DISPLAY }}>
+              Ítems pendientes por aprobar ({pendientes.length})
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: C.tintaSuave }}>
+              Un asesor o administrador debe aprobarlos antes de que aparezcan en las prácticas.
+              Podés editarlos o eliminarlos mientras sigan aquí.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-1.5">
+          <button onClick={() => setFiltro("activas")}
+            className="flex-1 rounded-lg py-2 text-[13px] font-semibold"
+            style={{
+              background: filtro === "activas" ? C.brote : "white",
+              color: filtro === "activas" ? "white" : C.bosque,
+              border: `2px solid ${filtro === "activas" ? C.brote : C.hojaBorde}`,
+            }}>
+            Activas ({activas.length})
+          </button>
+          <button onClick={() => setFiltro("pendientes")}
+            className="flex-1 rounded-lg py-2 text-[13px] font-semibold flex items-center justify-center gap-1"
+            style={{
+              background: filtro === "pendientes" ? C.sol : "white",
+              color: filtro === "pendientes" ? C.tinta : C.bosque,
+              border: `2px solid ${filtro === "pendientes" ? C.sol : C.hojaBorde}`,
+            }}>
+            <Clock size={12} /> Por aprobar ({pendientes.length})
+          </button>
+          <button onClick={() => setFiltro("archivadas")}
+            className="flex-1 rounded-lg py-2 text-[13px] font-semibold flex items-center justify-center gap-1"
+            style={{
+              background: filtro === "archivadas" ? C.brote : "white",
+              color: filtro === "archivadas" ? "white" : C.bosque,
+              border: `2px solid ${filtro === "archivadas" ? C.brote : C.hojaBorde}`,
+            }}>
+            <Archive size={12} /> Archivadas ({archivadas.length})
+          </button>
+        </div>
+      )}
 
-      {filtro === "archivadas" && totalArchivadas === 0 && (
+      {visibles.length === 0 && (
         <p className="text-xs text-center py-6" style={{ color: C.tintaSuave }}>
-          No hay preguntas archivadas.
+          {esGenerador ? "No tenés ítems pendientes en este momento." : "No hay preguntas en esta categoría."}
         </p>
       )}
 
@@ -1510,26 +1603,15 @@ function PestanaPreguntas({ units, preguntas, onNueva, onEditar, onArchivar, onE
             <div className="flex flex-col gap-2">
               {qs.map((q) => (
                 <div key={q.id} className="rounded-xl p-3 flex items-start justify-between gap-2"
-                  style={{ background: "white", border: `1px solid ${C.hojaBorde}`, opacity: q.archived ? 0.7 : 1 }}>
+                  style={{ background: "white", border: `1px solid ${q.status === "pending" ? C.sol : C.hojaBorde}`, opacity: q.archived ? 0.7 : 1 }}>
                   <div className="flex-1 min-w-0">
                     <span className="text-[10px] font-bold uppercase"
                       style={{ color: q.type === "caso" ? C.solOscuro : C.broteOscuro }}>
-                      {q.type}{q.archived && " · archivada"}
+                      {q.type}{q.status === "pending" && " · pendiente"}{q.archived && " · archivada"}
                     </span>
                     <p className="text-xs mt-0.5 line-clamp-2" style={{ color: C.tinta }}>{q.stem}</p>
                   </div>
-                  <div className="flex gap-1 flex-shrink-0">
-                    <button onClick={() => onArchivar(q)} title={q.archived ? "Activar" : "Archivar"}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: C.hoja }}>
-                      {q.archived ? <ArchiveRestore size={13} color={C.brote} /> : <Archive size={13} color={C.tintaSuave} />}
-                    </button>
-                    <button onClick={() => onEditar(q)} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: C.hoja }}>
-                      <Pencil size={13} color={C.brote} />
-                    </button>
-                    <button onClick={() => setPorEliminar(q)} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: C.coralClaro }}>
-                      <Trash2 size={13} color={C.coral} />
-                    </button>
-                  </div>
+                  {filaAcciones(q)}
                 </div>
               ))}
             </div>

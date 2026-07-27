@@ -227,10 +227,22 @@ export async function guardarPregunta(p) {
     explanation: p.explanation,
     updated_at: new Date().toISOString(),
   };
+  // status solo se envía al CREAR (una pregunta ya existente conserva su estado;
+  // pasar de "pending" a "approved" es una acción aparte, ver aprobarPregunta).
+  if (!p.id && p.status) fila.status = p.status;
+
   const q = p.id
     ? supabase.from("questions").update(fila).eq("id", p.id)
     : supabase.from("questions").insert(fila);
   const { error } = await q;
+  if (error) throw error;
+}
+
+export async function aprobarPregunta(id) {
+  const { error } = await supabase
+    .from("questions")
+    .update({ status: "approved", updated_at: new Date().toISOString() })
+    .eq("id", id);
   if (error) throw error;
 }
 

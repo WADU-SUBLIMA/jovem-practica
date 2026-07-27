@@ -50,11 +50,17 @@ create table if not exists public.questions (
   correct_index smallint not null check (correct_index between 0 and 2),
   explanation   text not null,
   archived      boolean not null default false,
-  created_by    uuid references public.profiles(id),
+  status        text not null default 'approved' check (status in ('pending','approved')),
+  -- 'pending': la creó un generador de ítems y espera aprobación de un
+  -- asesor o admin. Nunca aparece en questions_public ni en get_practice
+  -- hasta que pasa a 'approved'.
+  created_by    uuid references public.profiles(id) default auth.uid(),
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
   constraint questions_three_options check (jsonb_array_length(options) = 3)
 );
+
+create index if not exists questions_pending_idx on public.questions (status) where status = 'pending';
 
 create index if not exists questions_unit_idx on public.questions (unit_id) where not archived;
 
@@ -105,7 +111,7 @@ create index if not exists exam_attempts_date_idx on public.exam_attempts (creat
 create or replace view public.questions_public as
   select id, unit_id, type, scenario, example, image, stem, options
   from public.questions
-  where not archived;
+  where not archived and status = 'approved';
 
 -- ============================================================================
 -- Row Level Security
@@ -150,12 +156,45 @@ create policy profiles_admin_write on public.profiles
 -- El estudiante anónimo nunca lee esta tabla; usa questions_public + RPC.
 drop policy if exists questions_staff_read on public.questions;
 create policy questions_staff_read on public.questions
-  for select using (public.is_staff());
+  for select using (
+    public.app_role() in ('admin','asesor')
+    or (public.app_role() = 'item_creator' and created_by = auth.uid() and status = 'pending')
+  );
 
+-- Escritura de preguntas: separada por operación, porque las reglas cambian
+-- según el rol y (para item_creator) según sea 'pending' o no, y de quién es.
+--   admin / asesor : control total (crear directo como aprobada, editar,
+--                    archivar/desarchivar, eliminar, y aprobar pendientes).
+--   item_creator   : solo puede CREAR como 'pending', y solo puede editar o
+--                    eliminar sus PROPIOS ítems mientras sigan 'pending'.
+--                    No puede tocar (ni ver con permiso de escritura) nada
+--                    ya aprobado, ni aprobar sus propios envíos.
 drop policy if exists questions_editors_write on public.questions;
-create policy questions_editors_write on public.questions
-  for all using (public.app_role() in ('admin','item_creator','asesor'))
-  with check (public.app_role() in ('admin','item_creator','asesor'));
+
+create policy questions_insert on public.questions
+  for insert
+  with check (
+    public.app_role() in ('admin', 'asesor')
+    or (public.app_role() = 'item_creator' and status = 'pending' and created_by = auth.uid())
+  );
+
+create policy questions_update on public.questions
+  for update
+  using (
+    public.app_role() in ('admin', 'asesor')
+    or (public.app_role() = 'item_creator' and created_by = auth.uid() and status = 'pending')
+  )
+  with check (
+    public.app_role() in ('admin', 'asesor')
+    or (public.app_role() = 'item_creator' and created_by = auth.uid() and status = 'pending')
+  );
+
+create policy questions_delete on public.questions
+  for delete
+  using (
+    public.app_role() in ('admin', 'asesor')
+    or (public.app_role() = 'item_creator' and created_by = auth.uid() and status = 'pending')
+  );
 
 -- Configuración: la lee cualquiera (el estudiante necesita el tiempo límite),
 -- la modifica el asesor o el admin.
@@ -218,6 +257,7 @@ begin
     select q.id, q.unit_id, q.type, q.scenario, q.example, q.image, q.stem, q.options
     from public.questions q
     where not q.archived
+      and q.status = 'approved'
       and (p_mode <> 'unit' or q.unit_id = p_unit_id)
     order by random()
     limit case when p_mode = 'unit' then 1000 else coalesce(v_count, 30) end
