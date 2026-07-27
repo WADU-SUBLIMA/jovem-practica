@@ -80,8 +80,12 @@ import {
            admin y generador de ítems). Se actualizó también el permiso en
            la base de datos (antes la pantalla lo hubiera dejado entrar
            pero la base habría rechazado el guardado).
+   2.6.0 — Banco de preguntas: se agregó un filtro Activas/Archivadas (antes
+           las archivadas aparecían mezcladas, apenas atenuadas). Y eliminar
+           una pregunta ahora pide confirmación ("¿Estás seguro...?") con
+           opción de cancelar, en vez de borrarla al toque sin avisar.
 */
-const APP_VERSION = "2.5.0";
+const APP_VERSION = "2.6.0";
 const APP_CREDITS = "Wayvas · Wayller Vargas Sandoval";
 
 /* ========================================================================== */
@@ -1454,6 +1458,12 @@ function PestanaImpacto({ impacto, datosGrafica, rango, setRango }) {
 
 /* -------------------------- Pestaña: preguntas -------------------------- */
 function PestanaPreguntas({ units, preguntas, onNueva, onEditar, onArchivar, onEliminar }) {
+  const [filtro, setFiltro] = useState("activas"); // "activas" | "archivadas"
+  const [porEliminar, setPorEliminar] = useState(null);
+
+  const visibles = preguntas.filter((q) => (filtro === "archivadas" ? q.archived : !q.archived));
+  const totalArchivadas = preguntas.filter((q) => q.archived).length;
+
   return (
     <div className="flex flex-col gap-3">
       <button onClick={onNueva}
@@ -1462,8 +1472,35 @@ function PestanaPreguntas({ units, preguntas, onNueva, onEditar, onArchivar, onE
         <Plus size={16} /> Nueva pregunta
       </button>
 
+      <div className="flex gap-2">
+        <button onClick={() => setFiltro("activas")}
+          className="flex-1 rounded-lg py-2 text-sm font-semibold"
+          style={{
+            background: filtro === "activas" ? C.brote : "white",
+            color: filtro === "activas" ? "white" : C.bosque,
+            border: `2px solid ${filtro === "activas" ? C.brote : C.hojaBorde}`,
+          }}>
+          Activas ({preguntas.length - totalArchivadas})
+        </button>
+        <button onClick={() => setFiltro("archivadas")}
+          className="flex-1 rounded-lg py-2 text-sm font-semibold flex items-center justify-center gap-1"
+          style={{
+            background: filtro === "archivadas" ? C.brote : "white",
+            color: filtro === "archivadas" ? "white" : C.bosque,
+            border: `2px solid ${filtro === "archivadas" ? C.brote : C.hojaBorde}`,
+          }}>
+          <Archive size={13} /> Archivadas ({totalArchivadas})
+        </button>
+      </div>
+
+      {filtro === "archivadas" && totalArchivadas === 0 && (
+        <p className="text-xs text-center py-6" style={{ color: C.tintaSuave }}>
+          No hay preguntas archivadas.
+        </p>
+      )}
+
       {units.map((u) => {
-        const qs = preguntas.filter((q) => q.unit_id === u.id);
+        const qs = visibles.filter((q) => q.unit_id === u.id);
         if (!qs.length) return null;
         return (
           <div key={u.id}>
@@ -1473,7 +1510,7 @@ function PestanaPreguntas({ units, preguntas, onNueva, onEditar, onArchivar, onE
             <div className="flex flex-col gap-2">
               {qs.map((q) => (
                 <div key={q.id} className="rounded-xl p-3 flex items-start justify-between gap-2"
-                  style={{ background: "white", border: `1px solid ${C.hojaBorde}`, opacity: q.archived ? 0.55 : 1 }}>
+                  style={{ background: "white", border: `1px solid ${C.hojaBorde}`, opacity: q.archived ? 0.7 : 1 }}>
                   <div className="flex-1 min-w-0">
                     <span className="text-[10px] font-bold uppercase"
                       style={{ color: q.type === "caso" ? C.solOscuro : C.broteOscuro }}>
@@ -1489,7 +1526,7 @@ function PestanaPreguntas({ units, preguntas, onNueva, onEditar, onArchivar, onE
                     <button onClick={() => onEditar(q)} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: C.hoja }}>
                       <Pencil size={13} color={C.brote} />
                     </button>
-                    <button onClick={() => onEliminar(q)} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: C.coralClaro }}>
+                    <button onClick={() => setPorEliminar(q)} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: C.coralClaro }}>
                       <Trash2 size={13} color={C.coral} />
                     </button>
                   </div>
@@ -1499,6 +1536,42 @@ function PestanaPreguntas({ units, preguntas, onNueva, onEditar, onArchivar, onE
           </div>
         );
       })}
+
+      {porEliminar && (
+        <ConfirmarEliminarPregunta
+          pregunta={porEliminar}
+          onCancelar={() => setPorEliminar(null)}
+          onConfirmar={() => { onEliminar(porEliminar); setPorEliminar(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ConfirmarEliminarPregunta({ pregunta, onCancelar, onConfirmar }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6">
+      <div className="w-full max-w-sm rounded-3xl p-6 text-center" style={{ background: "white" }}>
+        <div className="w-14 h-14 rounded-full mx-auto flex items-center justify-center mb-3" style={{ background: C.coralClaro }}>
+          <Trash2 size={24} color={C.coral} />
+        </div>
+        <h3 style={{ fontFamily: FONT_DISPLAY, color: C.bosque }} className="text-lg font-bold mb-1">
+          ¿Estás seguro que deseas eliminar esta pregunta?
+        </h3>
+        <p className="text-sm mb-2 line-clamp-3" style={{ color: C.tinta }}>"{pregunta.stem}"</p>
+        <p className="text-xs mb-5" style={{ color: C.tintaSuave }}>
+          Esta acción no se puede deshacer. Si solo quieres dejar de usarla en las prácticas
+          sin perderla, usa "Archivar" en vez de eliminar.
+        </p>
+        <div className="flex gap-3">
+          <button onClick={onCancelar} className="flex-1 rounded-xl py-3 font-semibold text-sm" style={{ background: C.hoja, color: C.bosque }}>
+            Cancelar
+          </button>
+          <button onClick={onConfirmar} className="flex-1 rounded-xl py-3 font-semibold text-sm text-white" style={{ background: C.coral }}>
+            Sí, eliminar
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
