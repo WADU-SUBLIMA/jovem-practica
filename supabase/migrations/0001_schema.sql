@@ -154,8 +154,8 @@ create policy questions_staff_read on public.questions
 
 drop policy if exists questions_editors_write on public.questions;
 create policy questions_editors_write on public.questions
-  for all using (public.app_role() in ('admin','item_creator'))
-  with check (public.app_role() in ('admin','item_creator'));
+  for all using (public.app_role() in ('admin','item_creator','asesor'))
+  with check (public.app_role() in ('admin','item_creator','asesor'));
 
 -- Configuración: la lee cualquiera (el estudiante necesita el tiempo límite),
 -- la modifica el asesor o el admin.

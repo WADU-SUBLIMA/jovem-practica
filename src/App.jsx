@@ -76,8 +76,12 @@ import {
              confirmación antes de recargar/cerrar mientras hay una práctica
              activa, y (3) si aun así se recarga, al volver a abrir la app
              se ofrece continuar exactamente donde quedó o empezar de nuevo.
+   2.5.0 — El asesor ahora tiene acceso a la pestaña "Preguntas" (antes solo
+           admin y generador de ítems). Se actualizó también el permiso en
+           la base de datos (antes la pantalla lo hubiera dejado entrar
+           pero la base habría rechazado el guardado).
 */
-const APP_VERSION = "2.4.0";
+const APP_VERSION = "2.5.0";
 const APP_CREDITS = "Wayvas · Wayller Vargas Sandoval";
 
 /* ========================================================================== */
@@ -1226,7 +1230,7 @@ function AccesoStaff({ onVolver, onEntrar }) {
 function Panel({ staff, units, config, setConfig, onSalir, onInicio }) {
   const rol = staff.role;
   const esAdmin = rol === "admin";
-  const puedeEditarItems = rol === "admin" || rol === "item_creator";
+  const puedeEditarItems = rol === "admin" || rol === "item_creator" || rol === "asesor";
   const puedeConfigurar = rol === "admin" || rol === "asesor";
 
   const pestanaInicial = rol === "item_creator" ? "preguntas" : "impacto";
