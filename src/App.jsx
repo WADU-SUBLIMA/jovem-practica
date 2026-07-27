@@ -10,6 +10,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { jsPDF } from "jspdf";
 import {
   CheckCircle2, XCircle, ChevronRight, ChevronLeft, Lock, Plus, Trash2, Pencil,
   Users, TrendingUp, Award, RotateCcw, BarChart3, Eye, X, Loader2, Sparkles,
@@ -56,8 +57,16 @@ import {
            7 unidades / Resultados al instante), y la frase motivadora vuelve
            a mostrarse al final, en una tarjeta grande con ilustración de
            hojas. Se mantiene el Login arriba y los créditos al pie.
+   2.3.0 — Ajustes de portada y PDF real:
+           · Menos espacio arriba del logo, texto "Login" más grande.
+           · Frase motivadora movida de nuevo arriba (visible sin bajar),
+             ahora rota sola cada 15s con una transición de opacidad suave
+             (sin recargar la página).
+           · Subtítulo recortado: se quitó "Sin registro ni contraseña."
+           · "Guardar PDF" ya no abre el diálogo de impresión: genera un
+             archivo PDF real con jsPDF y lo descarga directo al dispositivo.
 */
-const APP_VERSION = "2.2.0";
+const APP_VERSION = "2.3.0";
 const APP_CREDITS = "Wayvas · Wayller Vargas Sandoval";
 
 /* ========================================================================== */
@@ -332,17 +341,49 @@ export default function App() {
 /* ========================================================================== */
 /* Portada                                                                    */
 /* ========================================================================== */
+function useFraseRotativa(lista, intervaloMs = 15000) {
+  const [indice, setIndice] = useState(() => Math.floor(Math.random() * lista.length));
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setIndice((i) => (i + 1) % lista.length);
+        setVisible(true);
+      }, 350);
+    }, intervaloMs);
+    return () => clearInterval(id);
+  }, [lista.length, intervaloMs]);
+
+  return { frase: lista[indice], visible };
+}
+
 function Portada({ staff, onPracticaCompleta, onElegirUnidad, onStaff }) {
-  const [frase] = useState(
-    () => MOTIVATIONAL_PHRASES[Math.floor(Math.random() * MOTIVATIONAL_PHRASES.length)]
-  );
+  const { frase, visible: fraseVisible } = useFraseRotativa(MOTIVATIONAL_PHRASES, 15000);
   return (
-    <div className="flex flex-col flex-1 px-6 pt-10 pb-8">
+    <div className="flex flex-col flex-1 px-6 pt-5 pb-8">
       <div className="flex items-center justify-between">
         <Logo />
-        <button onClick={onStaff} className="text-xs font-medium flex items-center gap-1 flex-shrink-0" style={{ color: C.tintaSuave }}>
-          <Lock size={13} /> {staff ? `Panel · ${staff.full_name}` : "Login"}
+        <button onClick={onStaff} className="text-sm font-medium flex items-center gap-1.5 flex-shrink-0" style={{ color: C.tintaSuave }}>
+          <Lock size={15} /> {staff ? `Panel · ${staff.full_name}` : "Login"}
         </button>
+      </div>
+
+      <div className="relative rounded-3xl p-5 pr-16 mt-5 overflow-hidden" style={{ background: C.hoja, minHeight: 84 }}>
+        <Sparkles size={18} color={C.brote} className="mb-2" />
+        <p
+          style={{
+            fontFamily: FONT_DISPLAY, color: C.bosque,
+            opacity: fraseVisible ? 1 : 0,
+            transition: "opacity 350ms ease",
+          }}
+          className="relative text-[15px] leading-snug font-bold"
+        >
+          {frase}
+        </p>
+        <Leaf size={110} color={C.broteOscuro} strokeWidth={1.25} className="absolute -bottom-6 -right-6 opacity-[0.12]" />
+        <Sprout size={44} color={C.broteOscuro} strokeWidth={1.25} className="absolute bottom-2 right-2 opacity-20" />
       </div>
 
       <div className="flex-1 flex flex-col justify-center gap-6 py-8">
@@ -354,7 +395,7 @@ function Portada({ staff, onPracticaCompleta, onElegirUnidad, onStaff }) {
             Prepárate para tu certificación
           </h1>
           <p className="mt-3 text-[15px]" style={{ color: C.tintaSuave }}>
-            Practica conceptos y casos reales de las 7 unidades. Sin registro ni contraseña.
+            Practica conceptos y casos reales de las 7 unidades.
           </p>
         </div>
 
@@ -397,15 +438,6 @@ function Portada({ staff, onPracticaCompleta, onElegirUnidad, onStaff }) {
               <span className="text-[12px] font-semibold leading-tight" style={{ color: C.bosque }}>{f.label}</span>
             </div>
           ))}
-        </div>
-
-        <div className="relative rounded-3xl p-5 pr-16 mt-1 overflow-hidden" style={{ background: C.hoja }}>
-          <Sparkles size={18} color={C.brote} className="mb-2" />
-          <p style={{ fontFamily: FONT_DISPLAY, color: C.bosque }} className="relative text-[15px] leading-snug font-bold">
-            {frase}
-          </p>
-          <Leaf size={110} color={C.broteOscuro} strokeWidth={1.25} className="absolute -bottom-6 -right-6 opacity-[0.12]" />
-          <Sprout size={44} color={C.broteOscuro} strokeWidth={1.25} className="absolute bottom-2 right-2 opacity-20" />
         </div>
       </div>
 
@@ -666,103 +698,193 @@ function ConfirmarFin({ faltantes, onCancelar, onConfirmar }) {
 /* ========================================================================== */
 /* Resultados                                                                 */
 /* ========================================================================== */
-function escaparHtml(s) {
-  return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
+function generarPDFReporte({ resultado, units, nombre, nivel, datosGrafica }) {
+  const doc = new jsPDF();
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 16;
+  const contentW = pageW - margin * 2;
+  let y = 20;
 
-function armarReporteHTML({ resultado, units, nombre, nivel, datosGrafica }) {
+  const verde = [63, 143, 95];
+  const verdeOscuro = [27, 67, 50];
+  const coral = [214, 69, 80];
+  const gris = [75, 93, 83];
+  const bordeVerde = [199, 230, 209];
+
+  function saltoDePaginaSiHaceFalta(alturaNecesaria) {
+    if (y + alturaNecesaria > pageH - 16) {
+      doc.addPage();
+      y = 20;
+    }
+  }
+
+  // Encabezado
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(17);
+  doc.setTextColor(...verdeOscuro);
+  doc.text("JOVEM Practica", margin, y);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "normal");
+  y += 7;
+  doc.text("Reporte de práctica", margin, y);
+
   const fecha = new Date().toLocaleDateString("es-CR", { day: "2-digit", month: "long", year: "numeric" });
-  const encabezado = `${escaparHtml(nombre)}${nivel ? " · " + escaparHtml(nivel) : ""}`;
+  doc.setFontSize(10);
+  doc.setTextColor(...gris);
+  y += 6;
+  doc.text(`${nombre}${nivel ? " · " + nivel : ""} — ${fecha}`, margin, y);
 
-  const barras = datosGrafica.map((d) => `
-    <div class="bar-row">
-      <span class="bar-label">${escaparHtml(d.short)}</span>
-      <span class="bar-track"><span class="bar-fill" style="width:${d.pct}%;background:${d.pct >= 70 ? "#3F8F5F" : d.pct >= 40 ? "#F5B942" : "#D64550"}"></span></span>
-      <span class="bar-pct">${d.pct}%</span>
-    </div>`).join("");
+  // Caja de nota
+  y += 8;
+  const cajaAlto = 30;
+  doc.setDrawColor(...bordeVerde);
+  doc.setLineWidth(0.6);
+  doc.roundedRect(margin, y, contentW, cajaAlto, 3, 3);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(30);
+  doc.setTextColor(...(resultado.passed ? verde : coral));
+  doc.text(String(Math.round(resultado.score)), pageW / 2, y + 16, { align: "center" });
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...gris);
+  doc.text("de 100", pageW / 2, y + 21, { align: "center" });
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(...(resultado.passed ? verdeOscuro : coral));
+  doc.text(resultado.passed ? "¡Aprobado!" : "Aún no alcanza — ¡sigue practicando!", pageW / 2, y + 27, { align: "center" });
+  y += cajaAlto + 10;
 
-  const preguntas = (resultado.detail || []).map((d, i) => {
+  // KPIs
+  const kpis = [
+    { label: "Correctas", valor: resultado.correct, color: verde },
+    { label: "Incorrectas", valor: resultado.wrong, color: coral },
+    { label: "Total", valor: resultado.total, color: verdeOscuro },
+  ];
+  const kpiW = (contentW - 8) / 3;
+  kpis.forEach((k, i) => {
+    const x = margin + i * (kpiW + 4);
+    doc.setDrawColor(...bordeVerde);
+    doc.roundedRect(x, y, kpiW, 18, 2, 2);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(...k.color);
+    doc.text(String(k.valor), x + kpiW / 2, y + 9, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...gris);
+    doc.text(k.label, x + kpiW / 2, y + 14, { align: "center" });
+  });
+  y += 26;
+
+  // Desempeño por unidad
+  if (datosGrafica.length) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(...verdeOscuro);
+    doc.text("Desempeño por unidad", margin, y);
+    y += 6;
+    datosGrafica.forEach((d) => {
+      saltoDePaginaSiHaceFalta(6);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(...gris);
+      doc.text(d.short, margin, y + 3.5);
+      const trackX = margin + 34;
+      const trackW = contentW - 34 - 12;
+      doc.setFillColor(228, 243, 232);
+      doc.roundedRect(trackX, y, trackW, 4, 1, 1, "F");
+      const color = d.pct >= 70 ? verde : d.pct >= 40 ? [245, 185, 66] : coral;
+      doc.setFillColor(...color);
+      doc.roundedRect(trackX, y, Math.max(2, (trackW * d.pct) / 100), 4, 1, 1, "F");
+      doc.setFont("helvetica", "bold");
+      doc.text(`${d.pct}%`, margin + contentW, y + 3.5, { align: "right" });
+      y += 7;
+    });
+    y += 4;
+  }
+
+  // Repaso de preguntas
+  saltoDePaginaSiHaceFalta(12);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...verdeOscuro);
+  doc.text("Repaso de preguntas", margin, y);
+  y += 7;
+
+  (resultado.detail || []).forEach((d, i) => {
     const ok = d.is_correct;
-    const tuya = d.selected === null || d.selected === undefined
-      ? `<p class="wrong">Sin responder</p>`
-      : ok ? "" : `<p class="wrong">Tu respuesta: ${escaparHtml(d.options[d.selected])}</p>`;
-    return `
-    <div class="q ${ok ? "q-ok" : "q-bad"}">
-      <p class="q-stem">${i + 1}. ${ok ? "✔" : "✘"} ${escaparHtml(d.stem)}</p>
-      ${d.scenario ? `<p class="q-scenario">${escaparHtml(d.scenario)}</p>` : ""}
-      ${tuya}
-      <p class="right">Correcta: ${escaparHtml(d.options[d.correct_index])}</p>
-      <p class="expl">${escaparHtml(d.explanation)}</p>
-    </div>`;
-  }).join("");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    const stemLineas = doc.splitTextToSize(`${i + 1}. ${ok ? "✔" : "✘"} ${d.stem}`, contentW - 2);
+    const escenarioLineas = d.scenario ? doc.splitTextToSize(d.scenario, contentW - 4) : [];
+    const tuRespuesta =
+      d.selected === null || d.selected === undefined
+        ? "Sin responder"
+        : !ok
+        ? `Tu respuesta: ${d.options[d.selected]}`
+        : null;
+    const correctaLineas = doc.splitTextToSize(`Correcta: ${d.options[d.correct_index]}`, contentW - 4);
+    const explicacionLineas = doc.splitTextToSize(d.explanation || "", contentW - 4);
 
-  return `<!DOCTYPE html>
-<html lang="es"><head><meta charset="utf-8"><title>Reporte JOVEM - ${encabezado}</title>
-<style>
-  @page { margin: 14mm; }
-  * { box-sizing: border-box; }
-  body { font-family: Inter, Arial, sans-serif; color:#16241C; margin:0; font-size:12px; line-height:1.45; }
-  h1 { font-size:19px; margin:0 0 2px; color:#1B4332; }
-  .sub { color:#4B5D53; font-size:12px; margin:0 0 14px; }
-  .score-box { border:2px solid #C7E6D1; border-radius:12px; padding:14px; text-align:center; margin-bottom:14px; }
-  .score { font-size:40px; font-weight:800; color:${resultado.passed ? "#3F8F5F" : "#D64550"}; line-height:1; }
-  .score-label { font-size:11px; color:#4B5D53; margin-top:2px; }
-  .verdict { display:inline-block; margin-top:8px; padding:4px 12px; border-radius:999px; font-weight:700; font-size:12px;
-    background:${resultado.passed ? "#E4F3E8" : "#FBE4E6"}; color:${resultado.passed ? "#1B4332" : "#D64550"}; }
-  .kpis { display:flex; gap:10px; margin-bottom:16px; }
-  .kpi { flex:1; border:1px solid #C7E6D1; border-radius:10px; padding:10px; text-align:center; }
-  .kpi b { display:block; font-size:20px; } .kpi span { font-size:10px; color:#4B5D53; }
-  h2 { font-size:13px; color:#1B4332; margin:18px 0 8px; }
-  .bar-row { display:flex; align-items:center; gap:8px; margin-bottom:5px; }
-  .bar-label { width:115px; font-size:10px; }
-  .bar-track { flex:1; height:10px; background:#E4F3E8; border-radius:999px; overflow:hidden; }
-  .bar-fill { display:block; height:10px; border-radius:999px; }
-  .bar-pct { width:34px; text-align:right; font-size:10px; font-weight:700; color:#4B5D53; }
-  .q { border:1px solid #C7E6D1; border-left-width:4px; border-radius:8px; padding:9px 11px; margin-bottom:7px; page-break-inside:avoid; }
-  .q-ok { border-left-color:#3F8F5F; } .q-bad { border-left-color:#D64550; }
-  .q-stem { font-weight:700; margin:0 0 4px; }
-  .q-scenario { margin:0 0 4px; font-style:italic; color:#4B5D53; font-size:11px; }
-  .wrong { margin:0 0 2px; color:#D64550; font-size:11px; }
-  .right { margin:0 0 3px; color:#1B4332; font-size:11px; }
-  .expl { margin:0; color:#4B5D53; font-size:11px; }
-  .footer { margin-top:18px; padding-top:8px; border-top:1px solid #C7E6D1; text-align:center; font-size:9px; color:#4B5D53; }
-</style></head>
-<body>
-  <h1>JOVEM Practica · Reporte de práctica</h1>
-  <p class="sub">${encabezado} — ${fecha}</p>
-  <div class="score-box">
-    <div class="score">${Math.round(resultado.score)}</div>
-    <div class="score-label">de 100</div>
-    <div class="verdict">${resultado.passed ? "¡Aprobado!" : "Aún no alcanza — ¡sigue practicando!"}</div>
-  </div>
-  <div class="kpis">
-    <div class="kpi"><b style="color:#3F8F5F">${resultado.correct}</b><span>Correctas</span></div>
-    <div class="kpi"><b style="color:#D64550">${resultado.wrong}</b><span>Incorrectas</span></div>
-    <div class="kpi"><b>${resultado.total}</b><span>Total</span></div>
-  </div>
-  <h2>Desempeño por unidad</h2>
-  ${barras}
-  <h2>Repaso de preguntas</h2>
-  ${preguntas}
-  <div class="footer">JOVEM Practica v${APP_VERSION} · Creado por ${escaparHtml(APP_CREDITS)}</div>
-</body></html>`;
+    const altoTotal =
+      6 + stemLineas.length * 4.5 + (escenarioLineas.length ? escenarioLineas.length * 4 + 1 : 0) +
+      (tuRespuesta ? 4.5 : 0) + correctaLineas.length * 4 + explicacionLineas.length * 4 + 4;
+
+    saltoDePaginaSiHaceFalta(altoTotal);
+    const yInicio = y;
+
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 41, 36);
+    doc.text(stemLineas, margin + 2, y + 4);
+    y += stemLineas.length * 4.5 + 1;
+
+    if (escenarioLineas.length) {
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(8.5);
+      doc.setTextColor(...gris);
+      doc.text(escenarioLineas, margin + 4, y + 3.5);
+      y += escenarioLineas.length * 4 + 1;
+    }
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    if (tuRespuesta) {
+      doc.setTextColor(...coral);
+      doc.text(tuRespuesta, margin + 4, y + 3.5);
+      y += 4.5;
+    }
+    doc.setTextColor(...verdeOscuro);
+    doc.text(correctaLineas, margin + 4, y + 3.5);
+    y += correctaLineas.length * 4;
+    doc.setTextColor(...gris);
+    doc.text(explicacionLineas, margin + 4, y + 3.5);
+    y += explicacionLineas.length * 4;
+
+    doc.setDrawColor(...(ok ? verde : coral));
+    doc.setLineWidth(1);
+    doc.line(margin, yInicio - 1, margin, y);
+    y += 4;
+  });
+
+  // Pie
+  saltoDePaginaSiHaceFalta(10);
+  doc.setDrawColor(...bordeVerde);
+  doc.line(margin, y, margin + contentW, y);
+  y += 5;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...gris);
+  doc.text(`JOVEM Practica v${APP_VERSION} · Creado por ${APP_CREDITS}`, pageW / 2, y, { align: "center" });
+
+  return doc;
 }
 
-function imprimirReporte(html) {
-  document.getElementById("jovem-print-frame")?.remove();
-  const marco = document.createElement("iframe");
-  marco.id = "jovem-print-frame";
-  Object.assign(marco.style, { position: "fixed", right: 0, bottom: 0, width: 0, height: 0, border: 0 });
-  document.body.appendChild(marco);
-  const doc = marco.contentWindow.document;
-  doc.open(); doc.write(html); doc.close();
-  const lanzar = () => {
-    try { marco.contentWindow.focus(); marco.contentWindow.print(); }
-    catch { window.print(); }
-  };
-  if (doc.readyState === "complete") setTimeout(lanzar, 150);
-  else marco.onload = () => setTimeout(lanzar, 150);
+function descargarPDFReporte(datos) {
+  const doc = generarPDFReporte(datos);
+  const fechaArchivo = new Date().toISOString().slice(0, 10);
+  const nombreSeguro = (datos.nombre || "estudiante").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "-");
+  doc.save(`jovem-reporte-${nombreSeguro}-${fechaArchivo}.pdf`);
 }
 
 function VistaResultados({ resultado, units, nombre, nivel, onNuevoIntento, onInicio }) {
@@ -851,7 +973,7 @@ function VistaResultados({ resultado, units, nombre, nivel, onNuevoIntento, onIn
         </div>
       )}
 
-      <button onClick={() => imprimirReporte(armarReporteHTML({ resultado, units, nombre, nivel, datosGrafica }))}
+      <button onClick={() => descargarPDFReporte({ resultado, units, nombre, nivel, datosGrafica })}
         className="w-full rounded-2xl py-3.5 font-bold flex items-center justify-center gap-2 mb-3"
         style={{ background: C.sol, color: C.tinta, fontFamily: FONT_DISPLAY }}>
         <Download size={17} /> Guardar PDF
